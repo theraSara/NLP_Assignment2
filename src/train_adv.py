@@ -1,20 +1,26 @@
 import os
+import json
 import torch
-import pandas as pd
+import argparse
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+from collections import Counter
+from sklearn.metrics import f1_score, classification_report
+from sklearn.utils.class_weight import compute_class_weight
+
+from torch.optim import AdamW
+from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+
 from transformers import (
     AutoTokenizer, 
     AutoModelForSequenceClassification,
-    AdamW,
     get_cosine_schedule_with_warmup
 )
-from sklearn.metrics import f1_score, classification_report
-from sklearn.utils.class_weight import compute_class_weight
-from tqdm import tqdm
-import argparse
-import json
-from collections import Counter
+
+scaler = GradScaler()
 
 class CodeDataset(Dataset):
     """Enhanced dataset with metadata features"""
@@ -87,20 +93,21 @@ def get_weighted_sampler(df, num_classes=11):
     )
     return sampler
 
-def train_epoch_focal(model, dataloader, optimizer, scheduler, device, criterion):
-    """Train with focal loss"""
+def train_epoch_focal(model, dataloader, optimizer, scheduler, device, criterion, accumulation_steps=4):
+    """Train with focal loss and gradient accumulation"""
     model.train()
     total_loss = 0
     predictions = []
     true_labels = []
     
+    optimizer.zero_grad()    
     progress_bar = tqdm(dataloader, desc='Training')
-    for batch in progress_bar:
+    
+    for i, batch in enumerate(progress_bar):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         labels = batch['labels'].to(device)
         
-        optimizer.zero_grad()
         
         outputs = model(
             input_ids=input_ids,
@@ -108,18 +115,24 @@ def train_epoch_focal(model, dataloader, optimizer, scheduler, device, criterion
         )
         
         loss = criterion(outputs.logits, labels)
-        total_loss += loss.item()
+        # normalize the loss
+        loss = loss / accumulation_steps
         
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
-        scheduler.step()
+        
+        if (i + 1) % accumulation_steps == 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+        
+        total_loss += loss.item() * accumulation_steps
         
         preds = torch.argmax(outputs.logits, dim=1)
         predictions.extend(preds.cpu().numpy())
         true_labels.extend(labels.cpu().numpy())
         
-        progress_bar.set_postfix({'loss': loss.item()})
+        progress_bar.set_postfix({'loss': loss.item() * accumulation_steps})
     
     avg_loss = total_loss / len(dataloader)
     f1_macro = f1_score(true_labels, predictions, average='macro', zero_division=0)
@@ -159,9 +172,10 @@ def main():
     parser.add_argument('--train_file', type=str, default=r'C:\Users\PC\OneDrive\Documents\uni\NLP_Assignment2\Task_B\train_balanced.parquet')
     parser.add_argument('--val_file', type=str, default=r'C:\Users\PC\OneDrive\Documents\uni\NLP_Assignment2\Task_B\validation.parquet')    
     parser.add_argument('--max_length', type=int, default=512)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--accumulation_steps', type=int, default=4)
     parser.add_argument('--epochs', type=int, default=5)
-    parser.add_argument('--lr', type=float, default=2e-5)
+    parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--num_classes', type=int, default=11)
     parser.add_argument('--output_dir', type=str, default='outputs_advanced')
     parser.add_argument('--use_focal_loss', action='store_true', help='Use focal loss')
@@ -225,7 +239,7 @@ def main():
     total_steps = len(train_loader) * args.epochs
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=int(0.1 * total_steps),
+        num_warmup_steps=int(0.1 * total_steps), # try 20%
         num_training_steps=total_steps
     )
     

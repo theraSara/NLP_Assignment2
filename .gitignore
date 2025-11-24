@@ -27,7 +27,6 @@ share/python-wheels/
 MANIFEST
 
 data/
-Task_B/
 analysis/
 outputs/
 report_figures/
