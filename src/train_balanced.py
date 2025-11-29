@@ -18,7 +18,6 @@ from sklearn.metrics import f1_score, classification_report
 import warnings
 warnings.filterwarnings('ignore')
 
-# --- 1. MAPPINGS & CUSTOM LOSS FUNCTION ---
 
 # Label mappings
 ID_TO_LABEL = {
@@ -44,28 +43,25 @@ class FocalLoss(torch.nn.Module):
     def forward(self, inputs, targets):
         # inputs are logits (B, C), targets are class indices (B,)
         
-        # 1. Standard Cross-Entropy:
+        # Standard Cross-Entropy:
         CE_loss = F.cross_entropy(inputs, targets, reduction='none')
         
-        # 2. Compute probabilities (p_t) and pt = p_t
+        # Compute probabilities (p_t) and pt = p_t
         pt = torch.exp(-CE_loss) 
         
-        # 3. Compute the modulating factor (1 - p_t)^gamma
+        # Compute the modulating factor (1 - p_t)^gamma
         F_mod = (1 - pt) ** self.gamma
         
-        # 4. Compute alpha weights (alpha_t)
-        # alpha is a vector (C,)
-        alpha_t = self.alpha[targets] 
+        # Compute alpha weights (alpha_t)
+        alpha_t = self.alpha[targets]          # vector (C,)
         
-        # 5. Full Focal Loss: alpha_t * (1 - p_t)^gamma * CE_loss
+        # Full Focal Loss: alpha_t * (1 - p_t)^gamma * CE_loss
         loss = alpha_t * F_mod * CE_loss
         
         if self.reduction == 'mean':
             return loss.mean()
         return loss.sum()
 
-
-# --- 2. DATA UTILITIES ---
 
 class CodeDataset(Dataset):
     """Dataset for code classification (unchanged)"""
@@ -83,7 +79,7 @@ class CodeDataset(Dataset):
         row = self.df.iloc[idx]
         code = str(row['code'])
         
-        # Adding metadata as a stronger feature (Richness of Features)
+        # Adding metadata as a stronger feature
         if self.include_metadata and 'language' in self.df.columns:
             language = str(row.get('language', 'unknown'))
             # Format: [CLS] The following code is in python. [SEP] CODE ...
@@ -113,27 +109,26 @@ class CodeDataset(Dataset):
 def get_balanced_train_data(train_df):
     """
     Implements targeted undersampling for the majority class (Human, ID 0) 
-    to create a balanced training subset (~116k samples).
+    to create a balanced training subset (115,808 samples).
     """
     
-    # 1. Separate Majority and Minority
+    # Separate Majority and Minority
     majority_df = train_df[train_df['label'] == 0]
     minority_df = train_df[train_df['label'] != 0]
     
     # Target size for the majority class is the total size of all minority classes
-    target_count = len(minority_df) # 57,904 samples
+    target_count = len(minority_df) 
     
-    # 2. Undersample Majority
-    # The '107k' in the report is an approximation. Using a 1:1 ratio is cleaner.
+    # Undersample Majority
     if target_count < len(majority_df):
         undersampled_majority = majority_df.sample(n=target_count, random_state=42)
     else:
         undersampled_majority = majority_df
         
-    # 3. Combine to form the Balanced Subset
+    # Combine to form the Balanced Subset
     balanced_df = pd.concat([undersampled_majority, minority_df], ignore_index=True)
     
-    # 4. Calculate Weights for Weighted Random Sampler
+    # Calculate Weights for Weighted Random Sampler
     # Weights are inversely proportional to class frequency in the balanced subset
     label_counts = balanced_df['label'].value_counts()
     num_samples = label_counts.sum()
@@ -149,8 +144,6 @@ def get_balanced_train_data(train_df):
         
     return balanced_df, sample_weights, class_weights
 
-
-# --- 3. TRAINING & EVALUATION LOOPS ---
 
 def train_epoch(model, dataloader, optimizer, scheduler, device, criterion):
     """Train for one epoch using Focal Loss"""
@@ -219,7 +212,29 @@ def evaluate(model, dataloader, device, num_classes=11):
     
     return macro_f1, per_class_f1, all_preds, all_labels
 
-# --- 4. MAIN EXECUTION ---
+def predict(model, dataloader, device):
+    """Generate predictions"""
+    model.eval()
+    all_predictions = []
+    all_ids = []
+    
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc='Predicting'):
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            
+            outputs = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask
+            )
+            
+            preds = torch.argmax(outputs.logits, dim=1)
+            all_predictions.extend(preds.cpu().numpy())
+            all_ids.extend(batch['id'].cpu().numpy() if isinstance(batch['id'], torch.Tensor) 
+                          else batch['id'])
+    
+    return all_ids, all_predictions
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -294,10 +309,10 @@ def main():
         train_df = pd.read_parquet(args.train_file)
         val_df = pd.read_parquet(args.val_file)
         
-        # 1. Undersample Majority Class & Get Weights
+        # Undersample Majority Class & Get Weights
         balanced_train_df, sample_weights, class_weights = get_balanced_train_data(train_df)
         
-        # 2. Setup Sampler and Loaders
+        # Setup Sampler and Loaders
         train_sampler = WeightedRandomSampler(
             weights=sample_weights,
             num_samples=len(balanced_train_df),
@@ -311,7 +326,7 @@ def main():
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler)
         val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
         
-        # 3. Setup Loss, Optimizer, and Scheduler
+        # Setup Loss, Optimizer, and Scheduler
         class_weights_tensor = torch.tensor(class_weights.values, dtype=torch.float).to(device)
         criterion = FocalLoss(alpha=class_weights_tensor, gamma=args.focal_gamma)
         
@@ -321,7 +336,7 @@ def main():
             optimizer, num_warmup_steps=int(total_steps * 0.1), num_training_steps=total_steps
         )
         
-        # 4. Training Loop
+        # Training Loop
         best_f1 = 0
         
         print(f'\nFocal Loss Gamma: {args.focal_gamma}')
@@ -351,7 +366,6 @@ def main():
         
         print(f'\nTraining completed! Best Val F1 (macro): {best_f1:.4f}')
 
-    # --- EVALUATE MODE ---
     elif args.mode == 'evaluate':
         print('\n=== EVALUATION MODE ===')
         if not args.val_file:
@@ -369,7 +383,6 @@ def main():
         print(f'\nClassification Report:')
         print(classification_report(labels, preds, target_names=target_names, zero_division=0))
 
-    # --- PREDICT MODE ---
     elif args.mode == 'predict':
         print('\n=== PREDICTION MODE ===')
         if not args.test_file:
