@@ -23,17 +23,14 @@ LABEL_NAMES = {
 }
 
 def load_predictions(pred_file, label_col='label'):
-    """Load predictions from CSV"""
     df = pd.read_csv(pred_file)
     return df[label_col].values
 
 def load_ground_truth(data_file):
-    """Load ground truth labels from parquet"""
     df = pd.read_parquet(data_file)
     return df['label'].values, df
 
 def plot_confusion_matrix(y_true, y_pred, output_dir, normalize=False):
-    """Plot confusion matrix"""
     cm = confusion_matrix(y_true, y_pred, labels=range(11))
     
     if normalize:
@@ -54,7 +51,6 @@ def plot_confusion_matrix(y_true, y_pred, output_dir, normalize=False):
     plt.close()
 
 def plot_per_class_f1(y_true, y_pred, output_dir):
-    """Plot per-class F1 scores"""
     f1_per_class = f1_score(y_true, y_pred, average=None, zero_division=0, labels=range(11))
     
     plt.figure(figsize=(12, 6))
@@ -77,7 +73,6 @@ def plot_per_class_f1(y_true, y_pred, output_dir):
     return f1_per_class
 
 def analyze_errors_by_language(y_true, y_pred, df, output_dir):
-    """Analyze errors by programming language"""
     if 'language' not in df.columns:
         print("No language information available")
         return
@@ -139,7 +134,6 @@ def analyze_errors_by_generator(y_true, y_pred, df, output_dir):
     return gen_stats
 
 def analyze_class_distribution(y_true, y_pred, output_dir):
-    """Analyze class distribution"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
     # True distribution
@@ -168,7 +162,6 @@ def analyze_class_distribution(y_true, y_pred, output_dir):
     plt.close()
 
 def generate_report(y_true, y_pred, output_dir):
-    """Generate comprehensive classification report"""
     report = classification_report(
         y_true, y_pred, 
         target_names=[LABEL_NAMES[i] for i in range(11)],

@@ -8,20 +8,6 @@ def create_balanced_dataset(train_file, output_file,
                            oversample_minority=False,
                            target_per_class=None,
                            random_state=42):
-    """
-    Create a balanced dataset for training
-    
-    Args:
-        train_file: Path to training parquet file
-        output_file: Path to save balanced dataset
-        human_samples: Number of human samples to keep (default: 50000)
-        oversample_minority: Whether to oversample minority classes
-        target_per_class: Target number of samples per minority class
-        random_state: Random seed
-    """
-    print("="*80)
-    print("CREATING BALANCED DATASET")
-    print("="*80)
     
     # Load data
     print(f"\nLoading data from: {train_file}")
@@ -32,15 +18,9 @@ def create_balanced_dataset(train_file, output_file,
     original_dist = train_df['label'].value_counts().sort_index()
     print(original_dist)
     
-    # Calculate class distribution
-    label_counts = dict(train_df['label'].value_counts())
-    
     balanced_dfs = []
     
     # Handle Human class (label 0)
-    print(f"\n{'='*80}")
-    print("PROCESSING HUMAN CLASS (Label 0)")
-    print(f"{'='*80}")
     human_df = train_df[train_df['label'] == 0]
     original_human = len(human_df)
     
@@ -54,10 +34,6 @@ def create_balanced_dataset(train_file, output_file,
     balanced_dfs.append(human_sampled)
     
     # Handle minority classes (labels 1-10)
-    print(f"\n{'='*80}")
-    print("PROCESSING MINORITY CLASSES (Labels 1-10)")
-    print(f"{'='*80}")
-    
     for label in range(1, 11):
         llm_df = train_df[train_df['label'] == label]
         original_count = len(llm_df)
@@ -80,11 +56,6 @@ def create_balanced_dataset(train_file, output_file,
         
         balanced_dfs.append(sampled)
     
-    # Combine all dataframes
-    print(f"\n{'='*80}")
-    print("COMBINING ALL CLASSES")
-    print(f"{'='*80}")
-    
     balanced_df = pd.concat(balanced_dfs, ignore_index=True)
     
     # Shuffle
@@ -99,11 +70,6 @@ def create_balanced_dataset(train_file, output_file,
     print("\nNew label distribution:")
     new_dist = balanced_df['label'].value_counts().sort_index()
     print(new_dist)
-    
-    # Calculate statistics
-    print(f"\n{'='*80}")
-    print("STATISTICS")
-    print(f"{'='*80}")
     
     print(f"Original size: {len(train_df):,}")
     print(f"Balanced size: {len(balanced_df):,}")
@@ -126,14 +92,6 @@ def create_balanced_dataset(train_file, output_file,
     return balanced_df
 
 def create_ultra_balanced(train_file, output_file, samples_per_class=5000, random_state=42):
-    """
-    Create an ultra-balanced dataset with equal samples per class
-    """
-    print("="*80)
-    print("CREATING ULTRA-BALANCED DATASET")
-    print(f"Target: {samples_per_class} samples per class")
-    print("="*80)
-    
     train_df = pd.read_parquet(train_file)
     
     balanced_dfs = []
@@ -205,87 +163,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
-    
-    
-    
-    
-"""
-OUTPUT:
-CREATING BALANCED DATASET
-================================================================================
-
-Loading data from: C:\Users\PC\OneDrive\Documents\uni\NLP_Assignment2\Task_B\train.parquet
-Original dataset size: 500000
-
-Original label distribution:
-label
-0     442096
-1       4162
-2       8993
-3       3029
-4       2227
-5       1968
-6       5783
-7       8197
-8       8127
-9       4608
-10     10810
-Name: count, dtype: int64
-
-================================================================================
-PROCESSING HUMAN CLASS (Label 0)
-================================================================================
-Undersampling: 442096 -> 50000 samples
-
-================================================================================
-PROCESSING MINORITY CLASSES (Labels 1-10)
-================================================================================
-Label 1 (DeepSeek-AI    ):   4162 samples (kept all)
-Label 2 (Qwen           ):   8993 samples (kept all)
-Label 3 (01-ai          ):   3029 samples (kept all)
-Label 4 (BigCode        ):   2227 samples (kept all)
-Label 5 (Gemma          ):   1968 samples (kept all)
-Label 6 (Phi            ):   5783 samples (kept all)
-Label 7 (Meta-LLaMA     ):   8197 samples (kept all)
-Label 8 (IBM-Granite    ):   8127 samples (kept all)
-Label 9 (Mistral        ):   4608 samples (kept all)
-Label 10 (OpenAI         ):  10810 samples (kept all)
-
-================================================================================
-COMBINING ALL CLASSES
-================================================================================
-
-Balanced dataset saved to: C:\Users\PC\OneDrive\Documents\uni\NLP_Assignment2\Task_B\train_balanced.parquet
-Total samples: 107904
-
-New label distribution:
-label
-0     50000
-1      4162
-2      8993
-3      3029
-4      2227
-5      1968
-6      5783
-7      8197
-8      8127
-9      4608
-10    10810
-Name: count, dtype: int64
-
-================================================================================
-STATISTICS
-================================================================================
-Original size: 500,000
-Balanced size: 107,904
-Reduction: 78.4%
-
-Original imbalance ratio: 224.6:1
-New imbalance ratio: 25.4:1
-
-Expected training time reduction: ~78%
-
-================================================================================
-DONE!
-"""

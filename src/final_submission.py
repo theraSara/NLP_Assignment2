@@ -1,4 +1,3 @@
-# fix_submission_final.py
 import pandas as pd
 
 # Load the original test file
@@ -21,8 +20,8 @@ else:
 
 print(f"First 10 IDs from test: {test_ids[:10]}")
 
-# Load your predictions (they should be in the same order as test file)
-pred_df = pd.read_csv('submission.csv')
+# Load your predictions 
+pred_df = pd.read_csv('predictions_validation.csv')
 
 print(f"\nPredictions shape: {pred_df.shape}")
 print(f"Predictions columns: {pred_df.columns.tolist()}")
@@ -30,11 +29,11 @@ print(f"Predictions columns: {pred_df.columns.tolist()}")
 # Create correct submission with original test IDs
 submission = pd.DataFrame({
     'ID': test_ids,
-    'label': pred_df['label'].values  # Your predictions in order
+    'label': pred_df['label'].values  
 })
 
 # Save
-submission.to_csv('submission_kaggle.csv', index=False)
+submission.to_csv('final_submission2.csv', index=False)
 
 print(f"\n✓ Created submission_kaggle.csv")
 print(f"✓ Total rows: {len(submission)}")

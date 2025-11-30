@@ -6,6 +6,8 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
 import argparse
+from sklearn.metrics import f1_score
+
 
 class CodeDataset(Dataset):
     """Dataset for code classification"""

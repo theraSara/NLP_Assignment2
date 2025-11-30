@@ -192,21 +192,21 @@ def check_submission_format(submission_file):
         print(f"ERROR: Missing required columns. Found: {df.columns.tolist()}")
         return False
     
-    print("✓ Columns are correct")
+    print("Columns are correct")
     
     # Check id column
     if df['id'].dtype not in [np.int32, np.int64]:
         print(f"ERROR: 'id' column should be integer, found: {df['id'].dtype}")
         return False
     
-    print("✓ ID column type is correct")
+    print("ID column type is correct")
     
     # Check label column
     if df['label'].dtype not in [np.int32, np.int64]:
         print(f"ERROR: 'label' column should be integer, found: {df['label'].dtype}")
         return False
     
-    print("✓ Label column type is correct")
+    print("Label column type is correct")
     
     # Check label range
     valid_labels = set(range(11))
@@ -214,26 +214,26 @@ def check_submission_format(submission_file):
     
     if not unique_labels.issubset(valid_labels):
         invalid = unique_labels - valid_labels
-        print(f"ERROR: Found invalid labels: {invalid}")
+        print(f"Error: Found invalid labels: {invalid}")
         return False
     
     print(f"All labels are valid (0-10)")
     
     # Check for duplicates
     if df['id'].duplicated().any():
-        print(f"ERROR: Found duplicate IDs")
+        print(f"Error: Found duplicate IDs")
         return False
     
-    print("✓ No duplicate IDs")
+    print("No duplicate IDs")
     
     # Check for missing values
     if df.isnull().any().any():
-        print(f"ERROR: Found missing values")
+        print(f"Error: Found missing values")
         return False
     
     print("No missing values")
     
-    # Print summary
+
     print(f"\nSubmission format is valid!")
     print(f"  - Total predictions: {len(df)}")
     print(f"  - Label distribution:")
@@ -243,10 +243,7 @@ def check_submission_format(submission_file):
     
     return True
 
-def compare_predictions(pred_file1, pred_file2, ground_truth_file=None):
-    """
-    Compare two prediction files
-    """
+def compare_predictions(pred_file1, pred_file2):
     print("Comparing predictions...")
     
     pred1 = pd.read_csv(pred_file1)
@@ -262,28 +259,6 @@ def compare_predictions(pred_file1, pred_file2, ground_truth_file=None):
     
     print(f"Number of differences: {diff_count} ({100*diff_count/len(pred1):.2f}%)")
     
-    if ground_truth_file:
-        # Load ground truth
-        if ground_truth_file.endswith('.parquet'):
-            gt_df = pd.read_parquet(ground_truth_file)
-        else:
-            gt_df = pd.read_csv(ground_truth_file)
-        
-        gt = gt_df['label'].values
-        
-        # Calculate accuracies
-        acc1 = (pred1['label'] == gt).mean()
-        acc2 = (pred2['label'] == gt).mean()
-        
-        print(f"\nAccuracy of prediction 1: {acc1:.4f}")
-        print(f"Accuracy of prediction 2: {acc2:.4f}")
-        
-        # Where pred1 is correct but pred2 is wrong
-        pred1_right_pred2_wrong = ((pred1['label'] == gt) & (pred2['label'] != gt)).sum()
-        pred2_right_pred1_wrong = ((pred2['label'] == gt) & (pred1['label'] != gt)).sum()
-        
-        print(f"\nPred1 correct but Pred2 wrong: {pred1_right_pred2_wrong}")
-        print(f"Pred2 correct but Pred1 wrong: {pred2_right_pred1_wrong}")
 
 if __name__ == '__main__':
     import sys
@@ -314,8 +289,7 @@ if __name__ == '__main__':
         check_submission_format(sys.argv[2])
     
     elif command == 'compare':
-        gt = sys.argv[4] if len(sys.argv) > 4 else None
-        compare_predictions(sys.argv[2], sys.argv[3], gt)
+        compare_predictions(sys.argv[2], sys.argv[3])
     
     elif command == 'visualize':
         output = sys.argv[3] if len(sys.argv) > 3 else 'training_history.png'
