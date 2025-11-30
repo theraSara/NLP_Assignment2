@@ -1,0 +1,9 @@
+language,accuracy,count
+C,0.875,48
+C#,0.626,99
+C++,0.608,125
+Go,0.781,64
+Java,0.632,253
+JavaScript,0.662,74
+PHP,0.917,36
+Python,0.681,301

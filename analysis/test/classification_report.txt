@@ -1,0 +1,17 @@
+              precision    recall  f1-score   support
+
+       Human      0.976     0.962     0.969       474
+ DeepSeek-AI      0.070     0.143     0.094        21
+        Qwen      0.258     0.342     0.294        73
+       01-ai      0.286     0.381     0.327        21
+     BigCode      0.167     0.200     0.182        10
+       Gemma      0.468     0.611     0.530        36
+         Phi      0.357     0.185     0.244        54
+  Meta-LLaMA      0.220     0.148     0.176        61
+ IBM-Granite      0.122     0.278     0.169        18
+     Mistral      0.133     0.222     0.167        18
+      OpenAI      0.801     0.621     0.700       214
+
+    accuracy                          0.677      1000
+   macro avg      0.351     0.372     0.350      1000
+weighted avg      0.716     0.677     0.690      1000
