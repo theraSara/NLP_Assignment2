@@ -57,7 +57,7 @@ New imbalance ratio: 25.4:1
 Train the model using CodeBERT with focal loss (γ=3.0):
 
 ```bash
-python train_adv.py \
+python src/train_adv.py \
     --model_name microsoft/codebert-base \
     --train_file Task_B/train_balanced.parquet \
     --val_file Task_B/validation.parquet \
@@ -76,7 +76,7 @@ python train_adv.py \
 Generate predictions on test set:
 
 ```bash
-python generate_predictions.py \
+python src/predict.py \
     --model_path outputs_focal_gamma3/best_model \
     --test_file Task_B/test.parquet \
     --output_file predictions.csv \
